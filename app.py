@@ -2,6 +2,7 @@ import os
 import json
 from flask import Flask, request, render_template, redirect
 from datetime import datetime
+from urllib.parse import urlencode
 
 app = Flask(__name__)
 
@@ -56,23 +57,29 @@ def finalizar_cadastro():
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
 
-    # Redirecionamento com base no produto e tipo (sem parâmetros)
+    # Redirecionamento com base no produto e tipo
     if usuario["produto"] == "arquetipos":
         if usuario["tipo"] == "autoavaliacao":
-            url_final = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
+            url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
         else:
-            url_final = "https://gestor.thehrkey.tech/form_arquetipos"
+            url_base = "https://gestor.thehrkey.tech/form_arquetipos"
     elif usuario["produto"] == "microambiente":
-        url_final = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+        url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
     else:
         return "❌ Produto ou tipo inválido", 400
 
+    # Parâmetros que serão enviados para o MetForm
+    parametros = {
+        "email": usuario["email"],
+        "emailLider": usuario["emailLider"],
+        "empresa": usuario["empresa"],
+        "codrodada": usuario["codrodada"],
+        "nome": usuario["nome"],
+        "tipo": usuario["tipo"]
+    }
+
+    url_final = f"{url_base}?{urlencode(parametros)}"
     return redirect(url_final)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
-
-
-
-   
-
