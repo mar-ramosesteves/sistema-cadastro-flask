@@ -6,7 +6,8 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Carregar dados dos tokens
-TOKENS_FILE = "tokens.json"
+TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
+
 if os.path.exists(TOKENS_FILE):
     with open(TOKENS_FILE, "r", encoding="utf-8") as f:
         tokens = json.load(f)
