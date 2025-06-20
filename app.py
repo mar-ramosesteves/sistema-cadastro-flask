@@ -55,12 +55,13 @@ def finalizar_cadastro():
 
     # Redirecionamento inteligente com base no produto e tipo
     if usuario["produto"] == "arquetipos":
-        if usuario["tipo"] == "autoavaliacao":
-            url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval/"
-        else:
-            url_base = "https://gestor.thehrkey.tech/form_arquetipos/"
-    elif usuario["produto"] == "microambiente":
-        url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes/"
+    if usuario["tipo"] == "autoavaliacao":
+        url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
+    else:
+        url_base = "https://gestor.thehrkey.tech/form_arquetipos"
+elif usuario["produto"] == "microambiente":
+    url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+
     else:
         return "❌ Produto ou tipo inválido", 400
 
