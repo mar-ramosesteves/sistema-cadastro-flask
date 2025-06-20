@@ -1,8 +1,8 @@
 import os
 import json
 from flask import Flask, request, render_template, redirect
-
 from datetime import datetime
+from urllib.parse import urlencode
 
 app = Flask(__name__)
 
@@ -30,8 +30,6 @@ def completar_cadastro():
 
     return render_template("completar_cadastro.html", usuario=usuario)
 
-
-
 @app.route("/finalizar-cadastro", methods=["POST"])
 def finalizar_cadastro():
     token_recebido = request.form.get("token")
@@ -55,9 +53,26 @@ def finalizar_cadastro():
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
 
-    # Redireciona para o formulário correto
-    base_metform = "https://gestor.thehrkey.tech/formularios/"
-    url_final = f"{base_metform}{usuario['produto']}_{usuario['tipo']}.html"
+    # Redirecionamento inteligente com base no produto e tipo
+    if usuario["produto"] == "arquetipos":
+        if usuario["tipo"] == "autoavaliacao":
+            url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval/"
+        else:
+            url_base = "https://gestor.thehrkey.tech/form_arquetipos/"
+    elif usuario["produto"] == "microambiente":
+        url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes/"
+    else:
+        return "❌ Produto ou tipo inválido", 400
 
+    # Parâmetros que serão passados na URL
+    parametros = {
+        "empresa": usuario["empresa"],
+        "codrodada": usuario["codrodada"],
+        "emailLider": usuario["emailLider"],
+        "nome": usuario["nome"],
+        "produto": usuario["produto"],
+        "tipo": usuario["tipo"]
+    }
+
+    url_final = f"{url_base}?{urlencode(parametros)}"
     return redirect(url_final)
-
