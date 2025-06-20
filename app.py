@@ -64,7 +64,7 @@ def finalizar_cadastro():
     else:
         return "❌ Produto ou tipo inválido", 400
 
-    # Parâmetros que serão passados na URL
+    # Adiciona os parâmetros esperados pelo MetForm
     parametros = {
         "empresa": usuario["empresa"],
         "codrodada": usuario["codrodada"],
