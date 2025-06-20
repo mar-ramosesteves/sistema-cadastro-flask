@@ -53,16 +53,20 @@ def finalizar_cadastro():
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
 
-    # Redirecionamento com base no produto e tipo
+   
+    # Redirecionamento com base no produto e tipo (sem parâmetros)
     if usuario["produto"] == "arquetipos":
         if usuario["tipo"] == "autoavaliacao":
-            url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
+            url_final = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
         else:
-            url_base = "https://gestor.thehrkey.tech/form_arquetipos"
+            url_final = "https://gestor.thehrkey.tech/form_arquetipos"
     elif usuario["produto"] == "microambiente":
-        url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+        url_final = "https://gestor.thehrkey.tech/microambiente-de-equipes"
     else:
         return "❌ Produto ou tipo inválido", 400
+
+return redirect(url_final)
+
 
     # Adiciona os parâmetros esperados pelo MetForm
     parametros = {
