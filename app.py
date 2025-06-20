@@ -53,7 +53,7 @@ def finalizar_cadastro():
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
 
-    # Redirecionamento inteligente com base no produto e tipo
+    # Redirecionamento com base no produto e tipo
     if usuario["produto"] == "arquetipos":
         if usuario["tipo"] == "autoavaliacao":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
@@ -61,7 +61,6 @@ def finalizar_cadastro():
             url_base = "https://gestor.thehrkey.tech/form_arquetipos"
     elif usuario["produto"] == "microambiente":
         url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
-
     else:
         return "❌ Produto ou tipo inválido", 400
 
