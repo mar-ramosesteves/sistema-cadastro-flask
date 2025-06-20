@@ -2,7 +2,6 @@ import os
 import json
 from flask import Flask, request, render_template, redirect
 from datetime import datetime
-from urllib.parse import urlencode
 
 app = Flask(__name__)
 
@@ -15,8 +14,6 @@ def carregar_tokens():
 @app.route("/")
 def home():
     return "✅ API do Sistema de Cadastro está no ar!"
-
-
 
 @app.route("/completar-cadastro")
 def completar_cadastro():
@@ -59,7 +56,6 @@ def finalizar_cadastro():
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
 
-   
     # Redirecionamento com base no produto e tipo (sem parâmetros)
     if usuario["produto"] == "arquetipos":
         if usuario["tipo"] == "autoavaliacao":
@@ -71,20 +67,6 @@ def finalizar_cadastro():
     else:
         return "❌ Produto ou tipo inválido", 400
 
-return redirect(url_final)
-
-
-    # Adiciona os parâmetros esperados pelo MetForm
-    parametros = {
-        "empresa": usuario["empresa"],
-        "codrodada": usuario["codrodada"],
-        "emailLider": usuario["emailLider"],
-        "nome": usuario["nome"],
-        "produto": usuario["produto"],
-        "tipo": usuario["tipo"]
-    }
-
-    url_final = f"{url_base}?{urlencode(parametros)}"
     return redirect(url_final)
 
 if __name__ == "__main__":
