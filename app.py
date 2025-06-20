@@ -1,6 +1,7 @@
 import os
 import json
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, redirect
+
 from datetime import datetime
 
 app = Flask(__name__)
