@@ -12,6 +12,12 @@ def carregar_tokens():
     with open(TOKENS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
+@app.route("/")
+def home():
+    return "✅ API do Sistema de Cadastro está no ar!"
+
+
+
 @app.route("/completar-cadastro")
 def completar_cadastro():
     token_recebido = request.args.get("token")
