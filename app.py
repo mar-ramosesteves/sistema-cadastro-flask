@@ -82,6 +82,8 @@ def finalizar_cadastro():
     }
 
     url_final = f"{url_base}?{urlencode(parametros)}"
+    print("URL FINAL MONTADA:", url_final)
+
     return redirect(url_final)
 
 if __name__ == "__main__":
