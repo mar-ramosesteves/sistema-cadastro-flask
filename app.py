@@ -76,7 +76,7 @@ def finalizar_cadastro():
     parametros = {
         "email": usuario["email"],
         "emailLider": usuario["emailLider"],
-        "name.empresa": usuario["empresa"].strip(),  # ← tira espaços extras
+        "nome_empresa": usuario["empresa"]
         "codrodada": usuario["codrodada"],
         "nome": usuario["nome"],
         "tipo": usuario["tipo"]
