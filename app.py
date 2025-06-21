@@ -86,7 +86,6 @@ def finalizar_cadastro():
     return redirect(url_final)
 
 
-    return redirect(url_final)
-
+   
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
