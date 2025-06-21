@@ -72,17 +72,19 @@ def finalizar_cadastro():
     else:
         return "❌ Produto ou tipo inválido", 400
 
+        # Parâmetros que serão enviados para o MetForm
     parametros = {
         "email": usuario["email"],
         "emailLider": usuario["emailLider"],
-        "empresa": usuario["empresa"],
+        "empresa": usuario["empresa"].strip(),  # ← tira espaços extras
         "codrodada": usuario["codrodada"],
         "nome": usuario["nome"],
         "tipo": usuario["tipo"]
     }
 
-    url_final = f"{url_base}?{urlencode(parametros)}"
-    print("URL FINAL MONTADA:", url_final)
+    url_final = f"{url_base}?{urlencode(parametros, doseq=True)}"
+    return redirect(url_final)
+
 
     return redirect(url_final)
 
