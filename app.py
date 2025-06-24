@@ -61,6 +61,8 @@ def finalizar_cadastro():
 
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
+        print(f"✅ TOKENS GERADOS: {json.dumps(tokens, indent=2, ensure_ascii=False)}")
+
 
     if usuario["produto"] == "arquetipos":
         if usuario["tipo"] == "autoavaliacao":
