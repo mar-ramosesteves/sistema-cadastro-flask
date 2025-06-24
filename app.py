@@ -85,6 +85,54 @@ def finalizar_cadastro():
     url_final = f"{url_base}?{urlencode(parametros, doseq=True)}"
     return redirect(url_final)
 
+from flask import send_from_directory, flash, url_for
+import pandas as pd
+import uuid
+from datetime import timedelta
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload_excel():
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file:
+            return "❌ Nenhum arquivo enviado.", 400
+
+        try:
+            df = pd.read_excel(file)
+            tokens = []
+
+            for _, row in df.iterrows():
+                token = {
+                    "nome": row.get("nome", "").strip(),
+                    "email": row.get("email", "").strip(),
+                    "empresa": row.get("empresa", "").strip(),
+                    "codrodada": row.get("codrodada", "").strip(),
+                    "produto": row.get("produto", "").strip().lower(),
+                    "tipo": row.get("tipo", "").strip().lower(),
+                    "nomeLider": row.get("nomeLider", "").strip(),
+                    "emailLider": row.get("emailLider", "").strip(),
+                    "token": uuid.uuid4().hex,
+                    "expira_em": (datetime.now() + timedelta(days=2)).isoformat(),
+                    "usado": False
+                }
+                tokens.append(token)
+
+            with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+                json.dump(tokens, f, indent=2, ensure_ascii=False)
+
+            return f"✅ {len(tokens)} tokens gerados com sucesso e salvos no tokens.json."
+        except Exception as e:
+            return f"❌ Erro ao processar o Excel: {e}", 500
+
+    return '''
+    <!doctype html>
+    <title>Upload Excel</title>
+    <h2>Upload de Planilha Excel para Gerar Tokens</h2>
+    <form method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".xlsx">
+      <input type="submit" value="Enviar">
+    </form>
+    '''
 
    
 if __name__ == "__main__":
