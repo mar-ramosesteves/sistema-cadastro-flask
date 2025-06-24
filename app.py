@@ -135,6 +135,25 @@ def upload_excel():
       <input type="submit" value="Enviar">
     </form>
     '''
+@app.route("/listar-tokens")
+def listar_tokens():
+    tokens = carregar_tokens()
+    html = "<h2>✅ TOKENS GERADOS</h2><ul style='font-family:monospace;'>"
+    for t in tokens:
+        html += "<li>"
+        html += "<br>".join([
+            f"<b>Nome:</b> {t['nome']}",
+            f"<b>Email:</b> {t['email']}",
+            f"<b>Empresa:</b> {t['empresa']}",
+            f"<b>Produto:</b> {t['produto']}",
+            f"<b>Tipo:</b> {t['tipo']}",
+            f"<b>Token:</b> <code>{t['token']}</code>",
+            f"<b>Expira em:</b> {t['expira_em']}",
+            f"<b>Usado:</b> {t['usado']}"
+        ])
+        html += "</li><hr>"
+    html += "</ul>"
+    return html
 
    
 if __name__ == "__main__":
