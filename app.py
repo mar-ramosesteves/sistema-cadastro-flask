@@ -155,6 +155,27 @@ def listar_tokens():
     html += "</ul>"
     return html
 
+# 1. Adicione esta rota ao final do seu app.py
+@app.route("/excluir-tokens", methods=["GET", "POST"])
+def excluir_tokens():
+    if request.method == "POST":
+        try:
+            with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f, indent=2, ensure_ascii=False)
+            return "✅ Todos os tokens foram excluídos com sucesso!"
+        except Exception as e:
+            return f"❌ Erro ao excluir os tokens: {e}"
+
+    # Tela de confirmação (GET)
+    return '''
+        <h2>Confirmação de Exclusão</h2>
+        <p style="color:red;"><strong>ATENÇÃO:</strong> Esta ação vai apagar <u>todos</u> os tokens salvos. Isso é irreversível.</p>
+        <form method="post">
+            <button type="submit" style="padding:10px 20px; background:red; color:white; border:none; border-radius:8px;">Excluir TODOS os tokens</button>
+        </form>
+        <p><a href="/listar-tokens">Voltar</a></p>
+    '''
+
    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
