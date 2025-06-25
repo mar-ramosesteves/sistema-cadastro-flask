@@ -201,7 +201,10 @@ def enviar_emails():
                 else:
                     continue
             elif produto == "microambiente":
-                url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+                if tipo in ["microambiente_autoavaliacao", "microambiente_equipe"]:
+                    url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+                else:
+                    continue
             else:
                 continue
 
@@ -217,12 +220,10 @@ def enviar_emails():
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
 
-            remetente = "mar.ramosesteves@gmail.com"
-            senha = "1Tubar@o"
+            remetente = "marramosesteves@gmail.com"
+            senha_remetente = "ndlo pgyo wclq iywp"  # senha de app do Gmail
             smtp_server = "smtp.gmail.com"
             porta = 465
-            email_remetente = "marramosesteves@gmail.com"
-            senha_remetente = "ndlo pgyo wclq iywp"  # senha de aplicativo do Gmail
 
             msg = MIMEMultipart()
             msg["From"] = remetente
@@ -230,13 +231,13 @@ def enviar_emails():
             msg["Subject"] = assunto
             msg.attach(MIMEText(corpo, "html"))
 
-            with smtplib.SMTP_SSL(smtp, porta) as server:
-                server.login(remetente, senha)
+            with smtplib.SMTP_SSL(smtp_server, porta) as server:
+                server.login(remetente, senha_remetente)
                 server.sendmail(remetente, email, msg.as_string())
 
             enviados += 1
         except Exception as e:
-            print(f"Erro ao enviar para {email}: {e}")
+            print(f"❌ Erro ao enviar para {email}: {e}")
 
     return f"✅ E-mails enviados com sucesso: {enviados}"
 
