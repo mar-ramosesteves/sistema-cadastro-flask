@@ -1,19 +1,24 @@
 import os
 import json
-import smtplib
+import unicodedata
+from flask import Flask, request, render_template, redirect
+from datetime import datetime
+from urllib.parse import urlencode
 import pandas as pd
 import uuid
-from flask import Flask, request, render_template, redirect
-from datetime import datetime, timedelta
-from urllib.parse import urlencode
-from email.mime.text import MIMEText
+from datetime import timedelta
+import smtplib
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
 
-# Função para carregar tokens existentes
+# Função para normalizar textos (sem acento, minúsculo)
+def normalizar(texto):
+    return unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII').strip().lower()
+
 def carregar_tokens():
     try:
         with open(TOKENS_FILE, "r", encoding="utf-8") as f:
@@ -21,7 +26,7 @@ def carregar_tokens():
             if isinstance(data, list) and all(isinstance(item, dict) for item in data):
                 return data
             else:
-                print("❌ ERRO: tokens.json não está no formato esperado (lista de dicionários).")
+                print("❌ ERRO: tokens.json não está no formato esperado.")
                 return []
     except Exception as e:
         print(f"❌ ERRO ao carregar tokens: {e}")
@@ -36,12 +41,14 @@ def completar_cadastro():
     token_recebido = request.args.get("token")
     tokens = carregar_tokens()
     usuario = next((t for t in tokens if t.get("token") == token_recebido), None)
+
     if not usuario:
         return "❌ Token inválido ou não encontrado", 404
     if usuario.get("usado"):
         return "⚠️ Esse token já foi usado.", 403
     if datetime.fromisoformat(usuario["expira_em"]) < datetime.now():
         return "⚠️ Esse token expirou.", 403
+
     return render_template("completar_cadastro.html", usuario=usuario)
 
 @app.route("/finalizar-cadastro", methods=["POST"])
@@ -53,7 +60,6 @@ def finalizar_cadastro():
 
     tokens = carregar_tokens()
     usuario = next((t for t in tokens if t.get("token") == token_recebido), None)
-
     if not usuario:
         return "❌ Token inválido", 404
 
@@ -64,14 +70,16 @@ def finalizar_cadastro():
 
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
-        print(f"✅ TOKENS GERADOS: {json.dumps(tokens, indent=2, ensure_ascii=False)}")
 
-    if usuario["produto"] == "arquetipos":
-        if usuario["tipo"] == "autoavaliacao":
+    produto = normalizar(usuario["produto"])
+    tipo = normalizar(usuario["tipo"])
+
+    if produto == "arquetipos":
+        if tipo == "autoavaliacao":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
         else:
             url_base = "https://gestor.thehrkey.tech/form_arquetipos"
-    elif usuario["produto"] == "microambiente":
+    elif produto == "microambiente":
         url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
     else:
         return "❌ Produto ou tipo inválido", 400
@@ -84,7 +92,6 @@ def finalizar_cadastro():
         "nome": usuario["nome"],
         "tipo": usuario["tipo"]
     }
-
     url_final = f"{url_base}?{urlencode(parametros, doseq=True)}"
     return redirect(url_final)
 
@@ -98,14 +105,15 @@ def upload_excel():
         try:
             df = pd.read_excel(file)
             tokens = []
+
             for _, row in df.iterrows():
                 token = {
                     "nome": row.get("nome", "").strip(),
                     "email": row.get("email", "").strip(),
                     "empresa": row.get("company", "").strip(),
                     "codrodada": row.get("codrodada", "").strip(),
-                    "produto": row.get("produto", "").strip().lower(),
-                    "tipo": row.get("tipo", "").strip().lower(),
+                    "produto": row.get("produto", "").strip(),
+                    "tipo": row.get("tipo", "").strip(),
                     "nomeLider": row.get("nomeLider", "").strip(),
                     "emailLider": row.get("emailLider", "").strip(),
                     "token": uuid.uuid4().hex,
@@ -160,6 +168,7 @@ def excluir_tokens():
             return "✅ Todos os tokens foram excluídos com sucesso!"
         except Exception as e:
             return f"❌ Erro ao excluir os tokens: {e}"
+
     return '''
         <h2>Confirmação de Exclusão</h2>
         <p style="color:red;"><strong>ATENÇÃO:</strong> Esta ação vai apagar <u>todos</u> os tokens salvos. Isso é irreversível.</p>
@@ -168,70 +177,3 @@ def excluir_tokens():
         </form>
         <p><a href="/listar-tokens">Voltar</a></p>
     '''
-
-@app.route("/enviar-emails")
-def enviar_emails():
-    tokens = carregar_tokens()
-    enviados = 0
-
-    smtp_host = "mail.thehrkey.tech"
-    smtp_port = 465
-    smtp_user = "futurorh@thehrkey.tech"
-    smtp_pass = "1Tubar@o"
-
-    for usuario in tokens:
-        if usuario.get("usado"):
-            continue
-
-        if usuario["produto"] == "arquetipos":
-            if usuario["tipo"] == "autoavaliacao":
-                url = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
-            else:
-                url = "https://gestor.thehrkey.tech/form_arquetipos"
-        elif usuario["produto"] == "microambiente":
-            url = "https://gestor.thehrkey.tech/microambiente-de-equipes"
-        else:
-            continue
-
-        parametros = {
-            "email": usuario["email"],
-            "emailLider": usuario["emailLider"],
-            "empresa": usuario["empresa"],
-            "codrodada": usuario["codrodada"],
-            "nome": usuario["nome"],
-            "tipo": usuario["tipo"]
-        }
-
-        link = f"{url}?{urlencode(parametros, doseq=True)}"
-
-        msg = MIMEMultipart()
-        msg["From"] = smtp_user
-        msg["To"] = usuario["email"]
-        msg["Subject"] = "[THE HR KEY] Link de Avaliação - Acesso Pessoal"
-
-        texto = f"""
-Olá {usuario['nome']},
-
-Seu link de avaliação está pronto. Clique no botão abaixo para acessar:
-
-👉 {link}
-
-Esse link é pessoal, intransferível e válido por até 2 dias. Só pode ser usado uma vez.
-
-Atenciosamente,
-The HR Key
-"""
-        msg.attach(MIMEText(texto, "plain"))
-
-        try:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
-                server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
-                enviados += 1
-        except Exception as e:
-            print(f"❌ Erro ao enviar para {usuario['email']}: {e}")
-
-    return f"✅ E-mails enviados com sucesso: {enviados}"
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
