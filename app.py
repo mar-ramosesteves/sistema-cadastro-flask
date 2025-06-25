@@ -1,13 +1,20 @@
 import os
 import json
 from flask import Flask, request, render_template, redirect
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
+from flask import send_from_directory, flash, url_for
+import pandas as pd
+import uuid
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
 
+# Função para carregar os tokens
 def carregar_tokens():
     try:
         with open(TOKENS_FILE, "r", encoding="utf-8") as f:
@@ -21,10 +28,12 @@ def carregar_tokens():
         print(f"❌ ERRO ao carregar tokens: {e}")
         return []
 
+# Rota principal
 @app.route("/")
 def home():
     return "✅ API do Sistema de Cadastro está no ar!"
 
+# Rota de preenchimento dos dados adicionais
 @app.route("/completar-cadastro")
 def completar_cadastro():
     token_recebido = request.args.get("token")
@@ -41,6 +50,7 @@ def completar_cadastro():
 
     return render_template("completar_cadastro.html", usuario=usuario)
 
+# Rota de finalização de cadastro e redirecionamento ao MetForm
 @app.route("/finalizar-cadastro", methods=["POST"])
 def finalizar_cadastro():
     token_recebido = request.form.get("token")
@@ -63,7 +73,6 @@ def finalizar_cadastro():
         json.dump(tokens, f, indent=2, ensure_ascii=False)
         print(f"✅ TOKENS GERADOS: {json.dumps(tokens, indent=2, ensure_ascii=False)}")
 
-
     if usuario["produto"] == "arquetipos":
         if usuario["tipo"] == "autoavaliacao":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
@@ -74,7 +83,6 @@ def finalizar_cadastro():
     else:
         return "❌ Produto ou tipo inválido", 400
 
-        # Parâmetros que serão enviados para o MetForm
     parametros = {
         "email": usuario["email"],
         "emailLider": usuario["emailLider"],
@@ -87,11 +95,7 @@ def finalizar_cadastro():
     url_final = f"{url_base}?{urlencode(parametros, doseq=True)}"
     return redirect(url_final)
 
-from flask import send_from_directory, flash, url_for
-import pandas as pd
-import uuid
-from datetime import timedelta
-
+# Upload de planilha para gerar tokens
 @app.route("/upload", methods=["GET", "POST"])
 def upload_excel():
     if request.method == "POST":
@@ -107,7 +111,7 @@ def upload_excel():
                 token = {
                     "nome": row.get("nome", "").strip(),
                     "email": row.get("email", "").strip(),
-                    "empresa": row.get("empresa", "").strip(),
+                    "empresa": row.get("company", "").strip(),
                     "codrodada": row.get("codrodada", "").strip(),
                     "produto": row.get("produto", "").strip().lower(),
                     "tipo": row.get("tipo", "").strip().lower(),
@@ -135,6 +139,8 @@ def upload_excel():
       <input type="submit" value="Enviar">
     </form>
     '''
+
+# Listagem visual dos tokens
 @app.route("/listar-tokens")
 def listar_tokens():
     tokens = carregar_tokens()
@@ -155,7 +161,7 @@ def listar_tokens():
     html += "</ul>"
     return html
 
-# 1. Adicione esta rota ao final do seu app.py
+# Exclusão em bloco dos tokens
 @app.route("/excluir-tokens", methods=["GET", "POST"])
 def excluir_tokens():
     if request.method == "POST":
@@ -166,7 +172,6 @@ def excluir_tokens():
         except Exception as e:
             return f"❌ Erro ao excluir os tokens: {e}"
 
-    # Tela de confirmação (GET)
     return '''
         <h2>Confirmação de Exclusão</h2>
         <p style="color:red;"><strong>ATENÇÃO:</strong> Esta ação vai apagar <u>todos</u> os tokens salvos. Isso é irreversível.</p>
@@ -176,6 +181,5 @@ def excluir_tokens():
         <p><a href="/listar-tokens">Voltar</a></p>
     '''
 
-   
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
