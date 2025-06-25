@@ -217,10 +217,12 @@ def enviar_emails():
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
 
-            remetente = "futurorh@thehrkey.tech"
+            remetente = "mar.ramosesteves@gamil.com"
             senha = "1Tubar@o"
-            smtp = "mail.thehrkey.tech"
+            smtp_server = "smtp.gmail.com"
             porta = 465
+            email_remetente = "marramosesteves@gmail.com"
+            senha_remetente = "ndlo pgyo wclq iywp"  # senha de aplicativo do Gmail
 
             msg = MIMEMultipart()
             msg["From"] = remetente
