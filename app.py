@@ -2,11 +2,10 @@ import os
 import json
 import unicodedata
 from flask import Flask, request, render_template, redirect
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 import pandas as pd
 import uuid
-from datetime import timedelta
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -177,3 +176,67 @@ def excluir_tokens():
         </form>
         <p><a href="/listar-tokens">Voltar</a></p>
     '''
+
+@app.route("/enviar-emails", methods=["GET"])
+def enviar_emails():
+    tokens = carregar_tokens()
+    enviados = 0
+
+    for usuario in tokens:
+        try:
+            nome = usuario.get("nome")
+            email = usuario.get("email")
+            produto = normalizar(usuario.get("produto", ""))
+            tipo = normalizar(usuario.get("tipo", ""))
+            token = usuario.get("token")
+
+            if not nome or not email or not token:
+                continue
+
+            if produto == "arquetipos":
+                if tipo == "autoavaliacao":
+                    url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
+                elif tipo == "avaliacao equipe":
+                    url_base = "https://gestor.thehrkey.tech/form_arquetipos"
+                else:
+                    continue
+            elif produto == "microambiente":
+                url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+            else:
+                continue
+
+            url_final = f"{url_base}?token={token}"
+
+            assunto = "🚀 Link de Acesso ao Formulário - The HR Key"
+            corpo = f"""
+            <p>Olá, <strong>{nome}</strong>!</p>
+            <p>Segue o link de acesso ao formulário <strong>{produto.upper()} - {tipo.upper()}</strong>:</p>
+            <p><a href="{url_final}" target="_blank">{url_final}</a></p>
+            <p>⚠️ Este link é único, válido por 2 dias, e pode ser acessado apenas 1 vez.</p>
+            <hr>
+            <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
+            """
+
+            remetente = "futurorh@thehrkey.tech"
+            senha = "1Tubar@o"
+            smtp = "mail.thehrkey.tech"
+            porta = 465
+
+            msg = MIMEMultipart()
+            msg["From"] = remetente
+            msg["To"] = email
+            msg["Subject"] = assunto
+            msg.attach(MIMEText(corpo, "html"))
+
+            with smtplib.SMTP_SSL(smtp, porta) as server:
+                server.login(remetente, senha)
+                server.sendmail(remetente, email, msg.as_string())
+
+            enviados += 1
+        except Exception as e:
+            print(f"Erro ao enviar para {email}: {e}")
+
+    return f"✅ E-mails enviados com sucesso: {enviados}"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
