@@ -1,12 +1,11 @@
 import os
 import json
+import smtplib
+import pandas as pd
+import uuid
 from flask import Flask, request, render_template, redirect
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
-from flask import send_from_directory, flash, url_for
-import pandas as pd
-import uuid
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -14,7 +13,7 @@ app = Flask(__name__)
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
 
-# Função para carregar os tokens
+# Função para carregar tokens existentes
 def carregar_tokens():
     try:
         with open(TOKENS_FILE, "r", encoding="utf-8") as f:
@@ -28,29 +27,23 @@ def carregar_tokens():
         print(f"❌ ERRO ao carregar tokens: {e}")
         return []
 
-# Rota principal
 @app.route("/")
 def home():
     return "✅ API do Sistema de Cadastro está no ar!"
 
-# Rota de preenchimento dos dados adicionais
 @app.route("/completar-cadastro")
 def completar_cadastro():
     token_recebido = request.args.get("token")
     tokens = carregar_tokens()
-
     usuario = next((t for t in tokens if t.get("token") == token_recebido), None)
-
     if not usuario:
         return "❌ Token inválido ou não encontrado", 404
     if usuario.get("usado"):
         return "⚠️ Esse token já foi usado.", 403
     if datetime.fromisoformat(usuario["expira_em"]) < datetime.now():
         return "⚠️ Esse token expirou.", 403
-
     return render_template("completar_cadastro.html", usuario=usuario)
 
-# Rota de finalização de cadastro e redirecionamento ao MetForm
 @app.route("/finalizar-cadastro", methods=["POST"])
 def finalizar_cadastro():
     token_recebido = request.form.get("token")
@@ -95,7 +88,6 @@ def finalizar_cadastro():
     url_final = f"{url_base}?{urlencode(parametros, doseq=True)}"
     return redirect(url_final)
 
-# Upload de planilha para gerar tokens
 @app.route("/upload", methods=["GET", "POST"])
 def upload_excel():
     if request.method == "POST":
@@ -106,7 +98,6 @@ def upload_excel():
         try:
             df = pd.read_excel(file)
             tokens = []
-
             for _, row in df.iterrows():
                 token = {
                     "nome": row.get("nome", "").strip(),
@@ -140,7 +131,6 @@ def upload_excel():
     </form>
     '''
 
-# Listagem visual dos tokens
 @app.route("/listar-tokens")
 def listar_tokens():
     tokens = carregar_tokens()
@@ -161,7 +151,6 @@ def listar_tokens():
     html += "</ul>"
     return html
 
-# Exclusão em bloco dos tokens
 @app.route("/excluir-tokens", methods=["GET", "POST"])
 def excluir_tokens():
     if request.method == "POST":
@@ -171,7 +160,6 @@ def excluir_tokens():
             return "✅ Todos os tokens foram excluídos com sucesso!"
         except Exception as e:
             return f"❌ Erro ao excluir os tokens: {e}"
-
     return '''
         <h2>Confirmação de Exclusão</h2>
         <p style="color:red;"><strong>ATENÇÃO:</strong> Esta ação vai apagar <u>todos</u> os tokens salvos. Isso é irreversível.</p>
@@ -180,6 +168,70 @@ def excluir_tokens():
         </form>
         <p><a href="/listar-tokens">Voltar</a></p>
     '''
+
+@app.route("/enviar-emails")
+def enviar_emails():
+    tokens = carregar_tokens()
+    enviados = 0
+
+    smtp_host = "mail.thehrkey.tech"
+    smtp_port = 465
+    smtp_user = "futurorh@thehrkey.tech"
+    smtp_pass = "1Tubar@o"
+
+    for usuario in tokens:
+        if usuario.get("usado"):
+            continue
+
+        if usuario["produto"] == "arquetipos":
+            if usuario["tipo"] == "autoavaliacao":
+                url = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
+            else:
+                url = "https://gestor.thehrkey.tech/form_arquetipos"
+        elif usuario["produto"] == "microambiente":
+            url = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+        else:
+            continue
+
+        parametros = {
+            "email": usuario["email"],
+            "emailLider": usuario["emailLider"],
+            "empresa": usuario["empresa"],
+            "codrodada": usuario["codrodada"],
+            "nome": usuario["nome"],
+            "tipo": usuario["tipo"]
+        }
+
+        link = f"{url}?{urlencode(parametros, doseq=True)}"
+
+        msg = MIMEMultipart()
+        msg["From"] = smtp_user
+        msg["To"] = usuario["email"]
+        msg["Subject"] = "[THE HR KEY] Link de Avaliação - Acesso Pessoal"
+
+        texto = f"""
+Olá {usuario['nome']},
+
+Seu link de avaliação está pronto. Clique no botão abaixo para acessar:
+
+👉 {link}
+
+Esse link é pessoal, intransferível e válido por até 2 dias. Só pode ser usado uma vez.
+
+Atenciosamente,
+The HR Key
+"""
+        msg.attach(MIMEText(texto, "plain"))
+
+        try:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+                enviados += 1
+        except Exception as e:
+            print(f"❌ Erro ao enviar para {usuario['email']}: {e}")
+
+    return f"✅ E-mails enviados com sucesso: {enviados}"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
