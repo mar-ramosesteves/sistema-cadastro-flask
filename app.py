@@ -217,7 +217,7 @@ def enviar_emails():
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
 
-            remetente = "mar.ramosesteves@gamil.com"
+            remetente = "mar.ramosesteves@gmail.com"
             senha = "1Tubar@o"
             smtp_server = "smtp.gmail.com"
             porta = 465
