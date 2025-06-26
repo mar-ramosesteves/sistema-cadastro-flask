@@ -88,10 +88,10 @@ def finalizar_cadastro():
             url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
         else:
             print(f"⚠️ Tipo inválido para microambiente: {tipo}")
-            continue
+            return
     else:
-    print(f"⚠️ Produto inválido: {produto}")
-        continue
+        print(f"⚠️ Produto inválido: {produto}")
+        return
 
 
     parametros = {
