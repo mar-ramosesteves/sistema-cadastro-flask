@@ -211,14 +211,14 @@ def enviar_emails():
             from urllib.parse import urlencode
 
             parametros = {
-                "token": token,
-                "nome": usuario.get("nome", ""),
+                "company": usuario.get("empresa", ""),
                 "email": usuario.get("email", ""),
-                "empresa": usuario.get("empresa", ""),
                 "codrodada": usuario.get("codrodada", ""),
-                "emailLider": usuario.get("emailLider", ""),
-                "tipo": usuario.get("tipo", "")
-            }
+                "tipo": usuario.get("tipo", ""),
+                "nome": usuario.get("nome", ""),
+                "nomeLider": usuario.get("nomeLider", ""),
+                "emailLider": usuario.get("emailLider", "")
+}
 
             url_final = f"{url_base}?{urlencode(parametros)}"
 
