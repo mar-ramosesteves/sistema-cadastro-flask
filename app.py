@@ -208,7 +208,20 @@ def enviar_emails():
             else:
                 continue
 
-            url_final = f"{url_base}?token={token}"
+            from urllib.parse import urlencode
+
+            parametros = {
+                "token": token,
+                "nome": usuario.get("nome", ""),
+                "email": usuario.get("email", ""),
+                "empresa": usuario.get("empresa", ""),
+                "codrodada": usuario.get("codrodada", ""),
+                "emailLider": usuario.get("emailLider", ""),
+                "tipo": usuario.get("tipo", "")
+            }
+
+            url_final = f"{url_base}?{urlencode(parametros)}"
+
 
             assunto = "🚀 Link de Acesso ao Formulário - The HR Key"
             corpo = f"""
