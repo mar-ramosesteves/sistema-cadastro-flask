@@ -4,6 +4,8 @@ import unicodedata
 from flask import Flask, request, render_template, redirect
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
+from urllib.parse import quote
+
 import pandas as pd
 import uuid
 import smtplib
