@@ -76,14 +76,23 @@ def finalizar_cadastro():
     tipo = normalizar(usuario["tipo"])
 
     if produto == "arquetipos":
-        if tipo == "autoavaliacao":
+        if tipo == "Autoavaliação":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
-        else:
+        elif tipo == "Avaliação Equipe":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos"
+        else:
+            print(f"⚠️ Tipo inválido para arquétipos: {tipo}")
+            continue
     elif produto == "microambiente":
-        url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+        if tipo in ["microambiente_equipe", "microambiente_autoavaliacao"]:
+            url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+        else:
+            print(f"⚠️ Tipo inválido para microambiente: {tipo}")
+            continue
     else:
-        return "❌ Produto ou tipo inválido", 400
+    print(f"⚠️ Produto inválido: {produto}")
+        continue
+
 
     parametros = {
         "email": usuario["email"],
