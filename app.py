@@ -82,7 +82,7 @@ def finalizar_cadastro():
             url_base = "https://gestor.thehrkey.tech/form_arquetipos"
         else:
             print(f"⚠️ Tipo inválido para arquétipos: {tipo}")
-            continue
+            return
     elif produto == "microambiente":
         if tipo in ["microambiente_equipe", "microambiente_autoavaliacao"]:
             url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
