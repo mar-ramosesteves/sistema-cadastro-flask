@@ -220,7 +220,8 @@ def enviar_emails():
                 "emailLider": usuario.get("emailLider", "")
 }
 
-            url_final = f"{url_base}?{urlencode(parametros)}"
+            query = "&".join(f"{k}={quote(str(v))}" for k, v in parametros.items())
+            url_final = f"{url_base}?{query}"
 
 
             assunto = "🚀 Link de Acesso ao Formulário - The HR Key"
