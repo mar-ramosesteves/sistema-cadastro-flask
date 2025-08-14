@@ -409,6 +409,7 @@ def enviar_emails_leadertrack():
         try:
             nome_lider = usuario.get("nomeLider")
             email_lider = usuario.get("emailLider")
+            email_envio = usuario.get("emailEnvio", email_lider)  # Usar emailEnvio se existir, senão emailLider
             empresa = usuario.get("empresa")
             token = usuario.get("token")
 
