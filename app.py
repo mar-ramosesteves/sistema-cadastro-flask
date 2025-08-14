@@ -442,20 +442,19 @@ def enviar_emails_leadertrack():
 
             msg = MIMEMultipart()
             msg["From"] = remetente
-            msg["To"] = email_lider
+            msg["To"] = email_envio
             msg["Subject"] = assunto
             msg.attach(MIMEText(corpo, "html"))
 
             with smtplib.SMTP_SSL(smtp_server, porta) as server:
                 server.login(remetente, senha_remetente)
-                server.sendmail(remetente, email_lider, msg.as_string())
+                server.sendmail(remetente, email_envio, msg.as_string())
 
             enviados += 1
-            print(f"✅ Email LeaderTrack enviado para {email_lider}")
+            print(f"✅ Email LeaderTrack enviado para {email_envio}")
         except Exception as e:
-            print(f"❌ Erro ao enviar para {email_lider}: {e}")
-
-    return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados}"
+            print(f"❌ Erro ao enviar para {email_envio}: {e}")
+        return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados}"
 
 @app.route("/painel-admin")
 def painel_admin():
