@@ -294,30 +294,26 @@ def enviar_emails():
 def validar_token_leadertrack():
     try:
         token_recebido = request.args.get("token")
-        print(f"Token recebido: {token_recebido}")
-        
         tokens = carregar_leader_track_tokens()
-        print(f"Tokens carregados: {len(tokens)}")
-        
         usuario = next((t for t in tokens if t.get("token") == token_recebido), None)
-        print(f"Usuário encontrado: {usuario}")
         
         if not usuario:
             return "❌ Token inválido ou não encontrado", 404
         
-        # Armazenar dados do usuário na sessão
-        session['email_lider'] = usuario.get("emailLider")
-        session['empresa'] = usuario.get("empresa")
-        session['nome_lider'] = usuario.get("nomeLider")
+        # Passar dados via URL para preenchimento automático
+        email_lider = usuario.get("emailLider")
+        empresa = usuario.get("empresa")
+        codrodada = usuario.get("codrodada")
         
-        print(f"Sessão criada: {session}")
-        
-        # Redirecionar para o LeaderTrack
-        return redirect("https://gestor.thehrkey.tech/sistema-de-analise/")
+        # Redirecionar com parâmetros
+        url_leader_track = f"https://gestor.thehrkey.tech/sistema-de-analise/?company={empresa}&codrodada={codrodada}&emaillider={email_lider}&token_validado=true"
+        return redirect(url_leader_track)
         
     except Exception as e:
         print(f"Erro na validação: {e}")
         return f"❌ Erro interno: {e}", 500
+
+        
 @app.route("/upload-leadertrack", methods=["GET", "POST"])
 def upload_excel_leadertrack():
     if request.method == "POST":
