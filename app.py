@@ -13,6 +13,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 app = Flask(__name__)
+app.secret_key = 'sistema-cadastro-secret-key-2024'
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
 LEADER_TRACK_TOKENS_FILE = os.path.join(os.path.dirname(__file__), "leader_track_tokens.json")  # ← ADICIONAR ESTA LINHA
