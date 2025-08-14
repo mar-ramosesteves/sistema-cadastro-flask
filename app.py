@@ -354,8 +354,9 @@ def upload_excel_leadertrack():
     return '''
     <!doctype html>
     <title>Upload Excel - LeaderTrack</title>
-    <h2>📋 Upload de Planilha Excel para Gerar Tokens LeaderTrack</h2>
-    <p><strong>Formato esperado:</strong> nomeLider, emailLider, company, codrodada</p>
+    <h2>�� Upload de Planilha Excel para Gerar Tokens LeaderTrack</h2>
+    <p><strong>Formato esperado:</strong> nomeLider, emailLider, emailEnvio (opcional), company, codrodada</p>
+    <p><em>Se não informar emailEnvio, será usado o emailLider como padrão</em></p>
     <form method="post" enctype="multipart/form-data">
       <input type="file" name="file" accept=".xlsx" required>
       <input type="submit" value="Gerar Tokens LeaderTrack">
