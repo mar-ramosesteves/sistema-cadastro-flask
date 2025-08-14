@@ -415,14 +415,13 @@ def enviar_emails_leadertrack():
         try:
             nome_lider = usuario.get("nomeLider")
             email_lider = usuario.get("emailLider")
-            email_envio = usuario.get("emailEnvio", email_lider)  # Usar emailEnvio se existir, senão emailLider
+            email_envio = usuario.get("emailEnvio", email_lider)
             empresa = usuario.get("empresa")
             token = usuario.get("token")
 
             if not nome_lider or not email_lider or not token:
                 continue
 
-            # URL do LeaderTrack com token
             url_final = f"https://sistema-cadastro-flask.onrender.com/validar-token-leadertrack?token={token}"
 
             assunto = "🚀 Acesso ao LeaderTrack - The HR Key"
@@ -435,7 +434,7 @@ def enviar_emails_leadertrack():
             <p><strong>Ou copie este link:</strong></p>
             <p style="background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace;">{url_final}</p>
             <p>✅ Este link é permanente e pode ser usado quantas vezes quiser.</p>
-            <p>📊 Você terá acesso a todos os seus relatórios e análises de liderança.</p>
+            <p>�� Você terá acesso a todos os seus relatórios e análises de liderança.</p>
             <hr>
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
@@ -459,8 +458,11 @@ def enviar_emails_leadertrack():
             print(f"✅ Email LeaderTrack enviado para {email_envio}")
         except Exception as e:
             print(f"❌ Erro ao enviar para {email_envio}: {e}")
-        return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados}"
+    
+    # MOVER O RETURN PARA AQUI (FORA DO LOOP)
+    return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados}"
 
+    
 @app.route("/painel-admin")
 def painel_admin():
     return '''
