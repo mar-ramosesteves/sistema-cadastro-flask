@@ -35,7 +35,7 @@ def carregar_tokens():
         print(f"❌ ERRO ao carregar tokens: {e}")
         return []
 
-ef carregar_leader_track_tokens():
+def carregar_leader_track_tokens():
     try:
         with open(LEADER_TRACK_TOKENS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
