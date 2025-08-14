@@ -371,6 +371,7 @@ def listar_tokens_leadertrack():
         html += "<br>".join([
             f"<b>Nome do Líder:</b> {t['nomeLider']}",
             f"<b>Email do Líder:</b> {t['emailLider']}",
+            f"<b>Email de Envio:</b> {t.get('emailEnvio', t['emailLider'])}",
             f"<b>Empresa:</b> {t['empresa']}",
             f"<b>Rodada:</b> {t['codrodada']}",
             f"<b>Token:</b> <code>{t['token']}</code>",
