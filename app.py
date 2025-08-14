@@ -329,9 +329,15 @@ def upload_excel_leadertrack():
                     print(f"⚠️ Token já existe para {email_lider}, pulando...")
                     continue
                 
+                # Se não informar emailEnvio, usar emailLider como padrão
+                email_envio = row.get("emailEnvio", "").strip()
+                if not email_envio:
+                    email_envio = email_lider
+                
                 token = {
                     "nomeLider": row.get("nomeLider", "").strip(),
                     "emailLider": email_lider,
+                    "emailEnvio": email_envio,
                     "empresa": row.get("company", "").strip(),
                     "codrodada": row.get("codrodada", "").strip(),
                     "token": uuid.uuid4().hex,
