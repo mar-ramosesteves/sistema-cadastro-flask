@@ -15,6 +15,8 @@ from email.mime.text import MIMEText
 app = Flask(__name__)
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
+LEADER_TRACK_TOKENS_FILE = os.path.join(os.path.dirname(__file__), "leader_track_tokens.json")  # ← ADICIONAR ESTA LINHA
+
 
 # Função para normalizar textos (sem acento, minúsculo)
 def normalizar(texto):
