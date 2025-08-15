@@ -40,6 +40,8 @@ def carregar_leader_track_tokens():
     try:
         with open(LEADER_TRACK_TOKENS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+            print(f" Carregando tokens: {len(data)} tokens encontrados")
+            print(f"📋 Tokens: {data}")
             if isinstance(data, list) and all(isinstance(item, dict) for item in data):
                 return data
             else:
