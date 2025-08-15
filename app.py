@@ -107,7 +107,7 @@ def finalizar_cadastro():
         if tipo == "Autoavaliação":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
         elif tipo == "Avaliação Equipe":
-            url_base = "https://gestor.thehrkey.tech/form_arquetipos"
+            url_base = "https://gestor.thehrkey.tech/form_arquetipos_novo"
         else:
             print(f"⚠️ Tipo inválido para arquétipos: {tipo}")
             return
@@ -236,7 +236,7 @@ def enviar_emails():
                 if tipo == "autoavaliacao":
                     url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
                 elif tipo == "avaliacao equipe":
-                    url_base = "https://gestor.thehrkey.tech/form_arquetipos"
+                    url_base = "https://gestor.thehrkey.tech/form_arquetipos_novo"
                 else:
                     continue
             elif produto == "microambiente":
