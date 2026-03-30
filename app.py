@@ -68,13 +68,15 @@ def carregar_leader_track_tokens():
 def salvar_leader_track_tokens(tokens):
     with open(LEADER_TRACK_TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
-        
+
+
 def obter_config_email():
     remetente = "marceloesteves@thehrkey.tech"
     senha_remetente = "1Tub@r@o110368"
     smtp_server = "smtp.titan.email"
     porta = 465
     return remetente, senha_remetente, smtp_server, porta
+
 
 @app.route("/")
 def home():
@@ -239,38 +241,65 @@ def excluir_tokens():
 @app.route("/enviar-emails", methods=["GET"])
 def enviar_emails():
     tokens = carregar_tokens()
-    enviados = 0
 
     remetente, senha_remetente, smtp_server, porta = obter_config_email()
 
-    if not senha_remetente:
-        return "❌ Variável de ambiente EMAIL_TITAN_SENHA não configurada.", 500
+    enviados = 0
+    pulados = 0
+    erros = 0
 
-    for usuario in tokens:
+    print(f"📦 Total de tokens carregados: {len(tokens)}")
+    print(f"📨 Remetente configurado: {remetente}")
+    print(f"🌐 SMTP: {smtp_server}:{porta}")
+
+    for i, usuario in enumerate(tokens, start=1):
         try:
-            nome = usuario.get("nome")
-            email = usuario.get("email")
+            nome = str(usuario.get("nome", "")).strip()
+            email = str(usuario.get("email", "")).strip()
             produto = normalizar(usuario.get("produto", ""))
             tipo = normalizar(usuario.get("tipo", ""))
-            token = usuario.get("token")
+            token = str(usuario.get("token", "")).strip()
+
+            print(f"\n--- Registro {i} ---")
+            print(f"nome={nome}")
+            print(f"email={email}")
+            print(f"produto={produto}")
+            print(f"tipo={tipo}")
+            print(f"token={token[:8] if token else 'vazio'}...")
 
             if not nome or not email or not token:
+                print("⏭️ Pulado: faltando nome, email ou token")
+                pulados += 1
                 continue
 
             if produto == "arquetipos":
-                if tipo == "autoavaliacao":
+                if tipo in ["autoavaliacao", "autoavaliacao "]:
                     url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
-                elif tipo == "avaliacao equipe":
+                elif tipo in ["avaliacao equipe", "avaliacao de equipe"]:
                     url_base = "https://gestor.thehrkey.tech/form_arquetipos"
                 else:
+                    print(f"⏭️ Pulado: tipo inválido para arquétipos -> {tipo}")
+                    pulados += 1
                     continue
 
             elif produto == "microambiente":
-                if tipo in ["microambiente_autoavaliacao", "microambiente_equipe"]:
+                if tipo in [
+                    "microambiente_autoavaliacao",
+                    "microambiente autoavaliacao"
+                ]:
+                    url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
+                elif tipo in [
+                    "microambiente_equipe",
+                    "microambiente equipe"
+                ]:
                     url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
                 else:
+                    print(f"⏭️ Pulado: tipo inválido para microambiente -> {tipo}")
+                    pulados += 1
                     continue
             else:
+                print(f"⏭️ Pulado: produto inválido -> {produto}")
+                pulados += 1
                 continue
 
             parametros = {
@@ -307,11 +336,13 @@ def enviar_emails():
                 server.sendmail(remetente, email, msg.as_string())
 
             enviados += 1
+            print(f"✅ Enviado com sucesso para {email}")
 
         except Exception as e:
-            print(f"❌ Erro ao enviar para {email}: {e}")
+            erros += 1
+            print(f"❌ Erro ao enviar para {usuario.get('email', 'sem email')}: {e}")
 
-    return f"✅ E-mails enviados com sucesso: {enviados}"
+    return f"✅ Enviados: {enviados} | ⏭️ Pulados: {pulados} | ❌ Erros: {erros} | 📦 Total: {len(tokens)}"
 
 
 @app.route("/validar-token-leadertrack")
@@ -443,11 +474,9 @@ def excluir_tokens_leadertrack():
 def enviar_emails_leadertrack():
     tokens = carregar_leader_track_tokens()
     enviados = 0
+    erros = 0
 
     remetente, senha_remetente, smtp_server, porta = obter_config_email()
-
-    if not senha_remetente:
-        return "❌ Variável de ambiente EMAIL_TITAN_SENHA não configurada.", 500
 
     for usuario in tokens:
         try:
@@ -491,9 +520,10 @@ def enviar_emails_leadertrack():
             print(f"✅ Email LeaderTrack enviado para {email_envio}")
 
         except Exception as e:
-            print(f"❌ Erro ao enviar para {email_envio}: {e}")
+            erros += 1
+            print(f"❌ Erro ao enviar para {usuario.get('emailEnvio', 'sem email')}: {e}")
 
-    return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados}"
+    return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados} | ❌ Erros: {erros}"
 
 
 @app.route("/painel-admin")
