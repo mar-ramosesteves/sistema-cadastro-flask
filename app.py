@@ -68,15 +68,13 @@ def carregar_leader_track_tokens():
 def salvar_leader_track_tokens(tokens):
     with open(LEADER_TRACK_TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
-
-
+        
 def obter_config_email():
     remetente = "marceloesteves@thehrkey.tech"
-    senha_remetente = os.getenv("1Tub@r@o110368")
+    senha_remetente = "1Tub@r@o110368"
     smtp_server = "smtp.titan.email"
     porta = 465
     return remetente, senha_remetente, smtp_server, porta
-
 
 @app.route("/")
 def home():
