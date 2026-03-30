@@ -273,9 +273,9 @@ def enviar_emails():
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
 
-            remetente = "marramosesteves@gmail.com"
-            senha_remetente = "ndlo pgyo wclq iywp"  # senha de app do Gmail
-            smtp_server = "smtp.gmail.com"
+            remetente = "marceloesteves@thehrkey.tech"
+            senha_remetente = "1Tub@r@o110368"  # senha de app do Gmail
+            smtp_server = "smtp.titan.email"
             porta = 465
 
             msg = MIMEMultipart()
