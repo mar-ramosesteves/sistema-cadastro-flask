@@ -3,6 +3,7 @@ import json
 import unicodedata
 import uuid
 import smtplib
+import ssl
 from datetime import datetime, timedelta
 from urllib.parse import urlencode, quote
 
@@ -247,10 +248,11 @@ def enviar_emails():
     enviados = 0
     pulados = 0
     erros = 0
+    logs = []
 
-    print(f"📦 Total de tokens carregados: {len(tokens)}")
-    print(f"📨 Remetente configurado: {remetente}")
-    print(f"🌐 SMTP: {smtp_server}:{porta}")
+    logs.append(f"📦 Total de tokens carregados: {len(tokens)}")
+    logs.append(f"📨 Remetente configurado: {remetente}")
+    logs.append(f"🌐 SMTP: {smtp_server}:{porta}")
 
     for i, usuario in enumerate(tokens, start=1):
         try:
@@ -260,15 +262,15 @@ def enviar_emails():
             tipo = normalizar(usuario.get("tipo", ""))
             token = str(usuario.get("token", "")).strip()
 
-            print(f"\n--- Registro {i} ---")
-            print(f"nome={nome}")
-            print(f"email={email}")
-            print(f"produto={produto}")
-            print(f"tipo={tipo}")
-            print(f"token={token[:8] if token else 'vazio'}...")
+            logs.append(f"--- Registro {i} ---")
+            logs.append(f"nome={nome}")
+            logs.append(f"email={email}")
+            logs.append(f"produto={produto}")
+            logs.append(f"tipo={tipo}")
+            logs.append(f"token={'ok' if token else 'vazio'}")
 
             if not nome or not email or not token:
-                print("⏭️ Pulado: faltando nome, email ou token")
+                logs.append("⏭️ Pulado: faltando nome, email ou token")
                 pulados += 1
                 continue
 
@@ -278,27 +280,21 @@ def enviar_emails():
                 elif tipo in ["avaliacao equipe", "avaliacao de equipe"]:
                     url_base = "https://gestor.thehrkey.tech/form_arquetipos"
                 else:
-                    print(f"⏭️ Pulado: tipo inválido para arquétipos -> {tipo}")
+                    logs.append(f"⏭️ Pulado: tipo inválido para arquétipos -> {tipo}")
                     pulados += 1
                     continue
 
             elif produto == "microambiente":
-                if tipo in [
-                    "microambiente_autoavaliacao",
-                    "microambiente autoavaliacao"
-                ]:
+                if tipo in ["microambiente_autoavaliacao", "microambiente autoavaliacao"]:
                     url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
-                elif tipo in [
-                    "microambiente_equipe",
-                    "microambiente equipe"
-                ]:
+                elif tipo in ["microambiente_equipe", "microambiente equipe"]:
                     url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
                 else:
-                    print(f"⏭️ Pulado: tipo inválido para microambiente -> {tipo}")
+                    logs.append(f"⏭️ Pulado: tipo inválido para microambiente -> {tipo}")
                     pulados += 1
                     continue
             else:
-                print(f"⏭️ Pulado: produto inválido -> {produto}")
+                logs.append(f"⏭️ Pulado: produto inválido -> {produto}")
                 pulados += 1
                 continue
 
@@ -331,18 +327,22 @@ def enviar_emails():
             msg["Subject"] = assunto
             msg.attach(MIMEText(corpo, "html"))
 
-            with smtplib.SMTP_SSL(smtp_server, porta) as server:
+            with smtplib.SMTP(smtp_server, porta) as server:
+                server.ehlo()
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
                 server.login(remetente, senha_remetente)
                 server.sendmail(remetente, email, msg.as_string())
 
             enviados += 1
-            print(f"✅ Enviado com sucesso para {email}")
+            logs.append(f"✅ Enviado com sucesso para {email}")
 
         except Exception as e:
             erros += 1
-            print(f"❌ Erro ao enviar para {usuario.get('email', 'sem email')}: {e}")
+            logs.append(f"❌ Erro ao enviar para {usuario.get('email', 'sem email')}: {str(e)}")
 
-    return f"✅ Enviados: {enviados} | ⏭️ Pulados: {pulados} | ❌ Erros: {erros} | 📦 Total: {len(tokens)}"
+    resumo = f"✅ Enviados: {enviados} | ⏭️ Pulados: {pulados} | ❌ Erros: {erros} | 📦 Total: {len(tokens)}"
+    return f"<pre>{resumo}\n\n" + "\n".join(logs) + "</pre>"
 
 
 @app.route("/validar-token-leadertrack")
@@ -475,10 +475,15 @@ def enviar_emails_leadertrack():
     tokens = carregar_leader_track_tokens()
     enviados = 0
     erros = 0
+    logs = []
 
     remetente, senha_remetente, smtp_server, porta = obter_config_email()
 
-    for usuario in tokens:
+    logs.append(f"📦 Total de tokens LeaderTrack carregados: {len(tokens)}")
+    logs.append(f"📨 Remetente configurado: {remetente}")
+    logs.append(f"🌐 SMTP: {smtp_server}:{porta}")
+
+    for i, usuario in enumerate(tokens, start=1):
         try:
             nome_lider = usuario.get("nomeLider")
             email_lider = usuario.get("emailLider")
@@ -486,7 +491,14 @@ def enviar_emails_leadertrack():
             empresa = usuario.get("empresa")
             token = usuario.get("token")
 
+            logs.append(f"--- Registro LeaderTrack {i} ---")
+            logs.append(f"nomeLider={nome_lider}")
+            logs.append(f"emailEnvio={email_envio}")
+            logs.append(f"empresa={empresa}")
+            logs.append(f"token={'ok' if token else 'vazio'}")
+
             if not nome_lider or not email_lider or not token:
+                logs.append("⏭️ Pulado: faltando nomeLider, emailLider ou token")
                 continue
 
             url_final = f"https://sistema-cadastro-flask.onrender.com/validar-token-leadertrack?token={quote(str(token))}"
@@ -512,18 +524,22 @@ def enviar_emails_leadertrack():
             msg["Subject"] = assunto
             msg.attach(MIMEText(corpo, "html"))
 
-            with smtplib.SMTP_SSL(smtp_server, porta) as server:
+            with smtplib.SMTP(smtp_server, porta) as server:
+                server.ehlo()
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
                 server.login(remetente, senha_remetente)
                 server.sendmail(remetente, email_envio, msg.as_string())
 
             enviados += 1
-            print(f"✅ Email LeaderTrack enviado para {email_envio}")
+            logs.append(f"✅ Email LeaderTrack enviado para {email_envio}")
 
         except Exception as e:
             erros += 1
-            print(f"❌ Erro ao enviar para {usuario.get('emailEnvio', 'sem email')}: {e}")
+            logs.append(f"❌ Erro ao enviar para {usuario.get('emailEnvio', 'sem email')}: {str(e)}")
 
-    return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados} | ❌ Erros: {erros}"
+    resumo = f"✅ E-mails LeaderTrack enviados com sucesso: {enviados} | ❌ Erros: {erros} | 📦 Total: {len(tokens)}"
+    return f"<pre>{resumo}\n\n" + "\n".join(logs) + "</pre>"
 
 
 @app.route("/painel-admin")
