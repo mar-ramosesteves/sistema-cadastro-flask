@@ -216,10 +216,21 @@ def excluir_tokens():
         <p><a href="/listar-tokens">Voltar</a></p>
     '''
 
+from flask import app
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from urllib.parse import quote
+import smtplib
+
 @app.route("/enviar-emails", methods=["GET"])
 def enviar_emails():
     tokens = carregar_tokens()
     enviados = 0
+
+    remetente = "marceloesteves@thehrkey.tech"
+    senha_remetente = "SUA_SENHA_DO_TITAN"
+    smtp_server = "smtp.titan.email"
+    porta = 465
 
     for usuario in tokens:
         try:
@@ -239,6 +250,7 @@ def enviar_emails():
                     url_base = "https://gestor.thehrkey.tech/form_arquetipos"
                 else:
                     continue
+
             elif produto == "microambiente":
                 if tipo in ["microambiente_autoavaliacao", "microambiente_equipe"]:
                     url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
@@ -246,8 +258,6 @@ def enviar_emails():
                     continue
             else:
                 continue
-
-            from urllib.parse import urlencode
 
             parametros = {
                 "company": usuario.get("empresa", ""),
@@ -257,11 +267,10 @@ def enviar_emails():
                 "nome": usuario.get("nome", ""),
                 "nomeLider": usuario.get("nomeLider", ""),
                 "emailLider": usuario.get("emailLider", "")
-}
+            }
 
             query = "&".join(f"{k}={quote(str(v))}" for k, v in parametros.items())
             url_final = f"{url_base}?{query}"
-
 
             assunto = "🚀 Link de Acesso ao Formulário - The HR Key"
             corpo = f"""
@@ -273,13 +282,8 @@ def enviar_emails():
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
 
-            remetente = "marceloesteves@thehrkey.tech"
-            senha_remetente = "1Tub@r@o110368"  # senha de app do Gmail
-            smtp_server = "smtp.titan.email"
-            porta = 465
-
             msg = MIMEMultipart()
-            msg["From"] = remetente
+            msg["From"] = f"The HR Key <{remetente}>"
             msg["To"] = email
             msg["Subject"] = assunto
             msg.attach(MIMEText(corpo, "html"))
@@ -289,11 +293,11 @@ def enviar_emails():
                 server.sendmail(remetente, email, msg.as_string())
 
             enviados += 1
+
         except Exception as e:
             print(f"❌ Erro ao enviar para {email}: {e}")
 
     return f"✅ E-mails enviados com sucesso: {enviados}"
-
     
 # ===== NOVAS ROTAS PARA LEADERTRACK =====
 
