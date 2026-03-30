@@ -1,14 +1,13 @@
 import os
 import json
 import unicodedata
-from flask import Flask, request, render_template, redirect, session
-from datetime import datetime, timedelta
-from urllib.parse import urlencode
-from urllib.parse import quote
-
-import pandas as pd
 import uuid
 import smtplib
+from datetime import datetime, timedelta
+from urllib.parse import urlencode, quote
+
+import pandas as pd
+from flask import Flask, request, render_template, redirect, session
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -16,14 +15,18 @@ app = Flask(__name__)
 app.secret_key = 'sistema-cadastro-secret-key-2024'
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
-LEADER_TRACK_TOKENS_FILE = os.path.join(os.path.dirname(__file__), "leader_track_tokens.json")  # ← ADICIONAR ESTA LINHA
+LEADER_TRACK_TOKENS_FILE = os.path.join(os.path.dirname(__file__), "leader_track_tokens.json")
 
 
-# Função para normalizar textos (sem acento, minúsculo)
 def normalizar(texto):
-    return unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII').strip().lower()
+    return unicodedata.normalize('NFKD', str(texto)).encode('ASCII', 'ignore').decode('ASCII').strip().lower()
+
 
 def carregar_tokens():
+    if not os.path.exists(TOKENS_FILE):
+        with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=2, ensure_ascii=False)
+
     try:
         with open(TOKENS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -36,17 +39,22 @@ def carregar_tokens():
         print(f"❌ ERRO ao carregar tokens: {e}")
         return []
 
+
+def salvar_tokens(tokens):
+    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+        json.dump(tokens, f, indent=2, ensure_ascii=False)
+
+
 def carregar_leader_track_tokens():
-    # Criar arquivo se não existir
     if not os.path.exists(LEADER_TRACK_TOKENS_FILE):
-        print(f" Criando arquivo: {LEADER_TRACK_TOKENS_FILE}")
+        print(f"📁 Criando arquivo: {LEADER_TRACK_TOKENS_FILE}")
         with open(LEADER_TRACK_TOKENS_FILE, "w", encoding="utf-8") as f:
             json.dump([], f, indent=2, ensure_ascii=False)
-    
+
     try:
         with open(LEADER_TRACK_TOKENS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            print(f" Carregando tokens: {len(data)} tokens encontrados")
+            print(f"📥 Carregando tokens: {len(data)} tokens encontrados")
             if isinstance(data, list) and all(isinstance(item, dict) for item in data):
                 return data
             else:
@@ -56,14 +64,24 @@ def carregar_leader_track_tokens():
         print(f"❌ ERRO ao carregar leader track tokens: {e}")
         return []
 
+
 def salvar_leader_track_tokens(tokens):
     with open(LEADER_TRACK_TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
 
 
+def obter_config_email():
+    remetente = "marceloesteves@thehrkey.tech"
+    senha_remetente = os.getenv("EMAIL_TITAN_SENHA")
+    smtp_server = "smtp.titan.email"
+    porta = 465
+    return remetente, senha_remetente, smtp_server, porta
+
+
 @app.route("/")
 def home():
     return "✅ API do Sistema de Cadastro está no ar!"
+
 
 @app.route("/completar-cadastro")
 def completar_cadastro():
@@ -80,6 +98,7 @@ def completar_cadastro():
 
     return render_template("completar_cadastro.html", usuario=usuario)
 
+
 @app.route("/finalizar-cadastro", methods=["POST"])
 def finalizar_cadastro():
     token_recebido = request.form.get("token")
@@ -89,6 +108,7 @@ def finalizar_cadastro():
 
     tokens = carregar_tokens()
     usuario = next((t for t in tokens if t.get("token") == token_recebido), None)
+
     if not usuario:
         return "❌ Token inválido", 404
 
@@ -97,41 +117,40 @@ def finalizar_cadastro():
     usuario["cargo"] = cargo
     usuario["usado"] = True
 
-    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
-        json.dump(tokens, f, indent=2, ensure_ascii=False)
+    salvar_tokens(tokens)
 
-    produto = normalizar(usuario["produto"])
-    tipo = normalizar(usuario["tipo"])
+    produto = normalizar(usuario.get("produto", ""))
+    tipo = normalizar(usuario.get("tipo", ""))
 
     if produto == "arquetipos":
-        if tipo == "Autoavaliação":
+        if tipo == "autoavaliacao":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos_autoaval"
-        elif tipo == "Avaliação Equipe":
+        elif tipo == "avaliacao equipe":
             url_base = "https://gestor.thehrkey.tech/form_arquetipos"
         else:
-            print(f"⚠️ Tipo inválido para arquétipos: {tipo}")
-            return
+            return f"⚠️ Tipo inválido para arquétipos: {tipo}", 400
+
     elif produto == "microambiente":
         if tipo in ["microambiente_equipe", "microambiente_autoavaliacao"]:
             url_base = "https://gestor.thehrkey.tech/microambiente-de-equipes"
         else:
-            print(f"⚠️ Tipo inválido para microambiente: {tipo}")
-            return
-    else:
-        print(f"⚠️ Produto inválido: {produto}")
-        return
+            return f"⚠️ Tipo inválido para microambiente: {tipo}", 400
 
+    else:
+        return f"⚠️ Produto inválido: {produto}", 400
 
     parametros = {
-        "email": usuario["email"],
-        "emailLider": usuario["emailLider"],
-        "empresa": usuario["empresa"],
-        "codrodada": usuario["codrodada"],
-        "nome": usuario["nome"],
-        "tipo": usuario["tipo"]
+        "email": usuario.get("email", ""),
+        "emailLider": usuario.get("emailLider", ""),
+        "empresa": usuario.get("empresa", ""),
+        "codrodada": usuario.get("codrodada", ""),
+        "nome": usuario.get("nome", ""),
+        "tipo": usuario.get("tipo", "")
     }
+
     url_final = f"{url_base}?{urlencode(parametros, doseq=True)}"
     return redirect(url_final)
+
 
 @app.route("/upload", methods=["GET", "POST"])
 def upload_excel():
@@ -146,24 +165,23 @@ def upload_excel():
 
             for _, row in df.iterrows():
                 token = {
-                    "nome": row.get("nome", "").strip(),
-                    "email": row.get("email", "").strip(),
-                    "empresa": row.get("company", "").strip(),
-                    "codrodada": row.get("codrodada", "").strip(),
-                    "produto": row.get("produto", "").strip(),
-                    "tipo": row.get("tipo", "").strip(),
-                    "nomeLider": row.get("nomeLider", "").strip(),
-                    "emailLider": row.get("emailLider", "").strip(),
+                    "nome": str(row.get("nome", "")).strip(),
+                    "email": str(row.get("email", "")).strip(),
+                    "empresa": str(row.get("company", "")).strip(),
+                    "codrodada": str(row.get("codrodada", "")).strip(),
+                    "produto": str(row.get("produto", "")).strip(),
+                    "tipo": str(row.get("tipo", "")).strip(),
+                    "nomeLider": str(row.get("nomeLider", "")).strip(),
+                    "emailLider": str(row.get("emailLider", "")).strip(),
                     "token": uuid.uuid4().hex,
                     "expira_em": (datetime.now() + timedelta(days=2)).isoformat(),
                     "usado": False
                 }
                 tokens.append(token)
 
-            with open(TOKENS_FILE, "w", encoding="utf-8") as f:
-                json.dump(tokens, f, indent=2, ensure_ascii=False)
-
+            salvar_tokens(tokens)
             return f"✅ {len(tokens)} tokens gerados com sucesso e salvos no tokens.json."
+
         except Exception as e:
             return f"❌ Erro ao processar o Excel: {e}", 500
 
@@ -177,32 +195,35 @@ def upload_excel():
     </form>
     '''
 
+
 @app.route("/listar-tokens")
 def listar_tokens():
     tokens = carregar_tokens()
     html = "<h2>✅ TOKENS GERADOS</h2><ul style='font-family:monospace;'>"
+
     for t in tokens:
         html += "<li>"
         html += "<br>".join([
-            f"<b>Nome:</b> {t['nome']}",
-            f"<b>Email:</b> {t['email']}",
-            f"<b>Empresa:</b> {t['empresa']}",
-            f"<b>Produto:</b> {t['produto']}",
-            f"<b>Tipo:</b> {t['tipo']}",
-            f"<b>Token:</b> <code>{t['token']}</code>",
-            f"<b>Expira em:</b> {t['expira_em']}",
-            f"<b>Usado:</b> {t['usado']}"
+            f"<b>Nome:</b> {t.get('nome', '')}",
+            f"<b>Email:</b> {t.get('email', '')}",
+            f"<b>Empresa:</b> {t.get('empresa', '')}",
+            f"<b>Produto:</b> {t.get('produto', '')}",
+            f"<b>Tipo:</b> {t.get('tipo', '')}",
+            f"<b>Token:</b> <code>{t.get('token', '')}</code>",
+            f"<b>Expira em:</b> {t.get('expira_em', '')}",
+            f"<b>Usado:</b> {t.get('usado', False)}"
         ])
         html += "</li><hr>"
+
     html += "</ul>"
     return html
+
 
 @app.route("/excluir-tokens", methods=["GET", "POST"])
 def excluir_tokens():
     if request.method == "POST":
         try:
-            with open(TOKENS_FILE, "w", encoding="utf-8") as f:
-                json.dump([], f, indent=2, ensure_ascii=False)
+            salvar_tokens([])
             return "✅ Todos os tokens foram excluídos com sucesso!"
         except Exception as e:
             return f"❌ Erro ao excluir os tokens: {e}"
@@ -216,21 +237,16 @@ def excluir_tokens():
         <p><a href="/listar-tokens">Voltar</a></p>
     '''
 
-from flask import app
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from urllib.parse import quote
-import smtplib
 
 @app.route("/enviar-emails", methods=["GET"])
 def enviar_emails():
     tokens = carregar_tokens()
     enviados = 0
 
-    remetente = "marceloesteves@thehrkey.tech"
-    senha_remetente = "SUA_SENHA_DO_TITAN"
-    smtp_server = "smtp.titan.email"
-    porta = 465
+    remetente, senha_remetente, smtp_server, porta = obter_config_email()
+
+    if not senha_remetente:
+        return "❌ Variável de ambiente EMAIL_TITAN_SENHA não configurada.", 500
 
     for usuario in tokens:
         try:
@@ -298,8 +314,7 @@ def enviar_emails():
             print(f"❌ Erro ao enviar para {email}: {e}")
 
     return f"✅ E-mails enviados com sucesso: {enviados}"
-    
-# ===== NOVAS ROTAS PARA LEADERTRACK =====
+
 
 @app.route("/validar-token-leadertrack")
 def validar_token_leadertrack():
@@ -307,24 +322,29 @@ def validar_token_leadertrack():
         token_recebido = request.args.get("token")
         tokens = carregar_leader_track_tokens()
         usuario = next((t for t in tokens if t.get("token") == token_recebido), None)
-        
+
         if not usuario:
             return "❌ Token inválido ou não encontrado", 404
-        
-        # Passar dados via URL para preenchimento automático
-        email_lider = usuario.get("emailLider")
-        empresa = usuario.get("empresa")
-        codrodada = usuario.get("codrodada")
-        
-        # Redirecionar com parâmetros
-        url_leader_track = f"https://gestor.thehrkey.tech/sistema-de-analise/?company={empresa}&codrodada={codrodada}&emaillider={email_lider}&token_validado=true"
+
+        email_lider = usuario.get("emailLider", "")
+        empresa = usuario.get("empresa", "")
+        codrodada = usuario.get("codrodada", "")
+
+        url_leader_track = (
+            f"https://gestor.thehrkey.tech/sistema-de-analise/"
+            f"?company={quote(str(empresa))}"
+            f"&codrodada={quote(str(codrodada))}"
+            f"&emaillider={quote(str(email_lider))}"
+            f"&token_validado=true"
+        )
+
         return redirect(url_leader_track)
-        
+
     except Exception as e:
         print(f"Erro na validação: {e}")
         return f"❌ Erro interno: {e}", 500
 
-        
+
 @app.route("/upload-leadertrack", methods=["GET", "POST"])
 def upload_excel_leadertrack():
     if request.method == "POST":
@@ -334,28 +354,26 @@ def upload_excel_leadertrack():
 
         try:
             df = pd.read_excel(file)
-            tokens = carregar_leader_track_tokens()  # Carregar tokens existentes
+            tokens = carregar_leader_track_tokens()
 
             for _, row in df.iterrows():
-                # Verificar se já existe token para este emailLider
-                email_lider = row.get("emailLider", "").strip()
+                email_lider = str(row.get("emailLider", "")).strip()
                 token_existente = next((t for t in tokens if t.get("emailLider") == email_lider), None)
-                
+
                 if token_existente:
                     print(f"⚠️ Token já existe para {email_lider}, pulando...")
                     continue
-                
-                # Se não informar emailEnvio, usar emailLider como padrão
-                email_envio = row.get("emailEnvio", "").strip()
+
+                email_envio = str(row.get("emailEnvio", "")).strip()
                 if not email_envio:
                     email_envio = email_lider
-                
+
                 token = {
-                    "nomeLider": row.get("nomeLider", "").strip(),
+                    "nomeLider": str(row.get("nomeLider", "")).strip(),
                     "emailLider": email_lider,
                     "emailEnvio": email_envio,
-                    "empresa": row.get("company", "").strip(),
-                    "codrodada": row.get("codrodada", "").strip(),
+                    "empresa": str(row.get("company", "")).strip(),
+                    "codrodada": str(row.get("codrodada", "")).strip(),
                     "token": uuid.uuid4().hex,
                     "criado_em": datetime.now().isoformat(),
                     "ativo": True
@@ -364,13 +382,14 @@ def upload_excel_leadertrack():
 
             salvar_leader_track_tokens(tokens)
             return f"✅ {len(tokens)} tokens LeaderTrack gerados com sucesso!"
+
         except Exception as e:
             return f"❌ Erro ao processar o Excel: {e}", 500
 
     return '''
     <!doctype html>
     <title>Upload Excel - LeaderTrack</title>
-    <h2>�� Upload de Planilha Excel para Gerar Tokens LeaderTrack</h2>
+    <h2>📊 Upload de Planilha Excel para Gerar Tokens LeaderTrack</h2>
     <p><strong>Formato esperado:</strong> nomeLider, emailLider, emailEnvio (opcional), company, codrodada</p>
     <p><em>Se não informar emailEnvio, será usado o emailLider como padrão</em></p>
     <form method="post" enctype="multipart/form-data">
@@ -379,25 +398,29 @@ def upload_excel_leadertrack():
     </form>
     '''
 
+
 @app.route("/listar-tokens-leadertrack")
 def listar_tokens_leadertrack():
     tokens = carregar_leader_track_tokens()
     html = "<h2>✅ TOKENS LEADERTRACK GERADOS</h2><ul style='font-family:monospace;'>"
+
     for t in tokens:
         html += "<li>"
         html += "<br>".join([
-            f"<b>Nome do Líder:</b> {t['nomeLider']}",
-            f"<b>Email do Líder:</b> {t['emailLider']}",
-            f"<b>Email de Envio:</b> {t.get('emailEnvio', t['emailLider'])}",
-            f"<b>Empresa:</b> {t['empresa']}",
-            f"<b>Rodada:</b> {t['codrodada']}",
-            f"<b>Token:</b> <code>{t['token']}</code>",
-            f"<b>Criado em:</b> {t['criado_em']}",
-            f"<b>Ativo:</b> {t['ativo']}"
+            f"<b>Nome do Líder:</b> {t.get('nomeLider', '')}",
+            f"<b>Email do Líder:</b> {t.get('emailLider', '')}",
+            f"<b>Email de Envio:</b> {t.get('emailEnvio', t.get('emailLider', ''))}",
+            f"<b>Empresa:</b> {t.get('empresa', '')}",
+            f"<b>Rodada:</b> {t.get('codrodada', '')}",
+            f"<b>Token:</b> <code>{t.get('token', '')}</code>",
+            f"<b>Criado em:</b> {t.get('criado_em', '')}",
+            f"<b>Ativo:</b> {t.get('ativo', False)}"
         ])
         html += "</li><hr>"
+
     html += "</ul>"
     return html
+
 
 @app.route("/excluir-tokens-leadertrack", methods=["GET", "POST"])
 def excluir_tokens_leadertrack():
@@ -417,10 +440,16 @@ def excluir_tokens_leadertrack():
         <p><a href="/listar-tokens-leadertrack">Voltar</a></p>
     '''
 
+
 @app.route("/enviar-emails-leadertrack", methods=["GET"])
 def enviar_emails_leadertrack():
     tokens = carregar_leader_track_tokens()
     enviados = 0
+
+    remetente, senha_remetente, smtp_server, porta = obter_config_email()
+
+    if not senha_remetente:
+        return "❌ Variável de ambiente EMAIL_TITAN_SENHA não configurada.", 500
 
     for usuario in tokens:
         try:
@@ -433,7 +462,7 @@ def enviar_emails_leadertrack():
             if not nome_lider or not email_lider or not token:
                 continue
 
-            url_final = f"https://sistema-cadastro-flask.onrender.com/validar-token-leadertrack?token={token}"
+            url_final = f"https://sistema-cadastro-flask.onrender.com/validar-token-leadertrack?token={quote(str(token))}"
 
             assunto = "🚀 Acesso ao LeaderTrack - The HR Key"
             corpo = f"""
@@ -445,18 +474,13 @@ def enviar_emails_leadertrack():
             <p><strong>Ou copie este link:</strong></p>
             <p style="background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace;">{url_final}</p>
             <p>✅ Este link é permanente e pode ser usado quantas vezes quiser.</p>
-            <p>�� Você terá acesso a todos os seus relatórios e análises de liderança.</p>
+            <p>Você terá acesso a todos os seus relatórios e análises de liderança.</p>
             <hr>
             <p style="font-size:12px;color:#777;">The HR Key | Programa de Liderança de Alta Performance</p>
             """
 
-            remetente = "marramosesteves@gmail.com"
-            senha_remetente = "ndlo pgyo wclq iywp"
-            smtp_server = "smtp.gmail.com"
-            porta = 465
-
             msg = MIMEMultipart()
-            msg["From"] = remetente
+            msg["From"] = f"The HR Key <{remetente}>"
             msg["To"] = email_envio
             msg["Subject"] = assunto
             msg.attach(MIMEText(corpo, "html"))
@@ -467,13 +491,13 @@ def enviar_emails_leadertrack():
 
             enviados += 1
             print(f"✅ Email LeaderTrack enviado para {email_envio}")
+
         except Exception as e:
             print(f"❌ Erro ao enviar para {email_envio}: {e}")
-    
-    # MOVER O RETURN PARA AQUI (FORA DO LOOP)
+
     return f"✅ E-mails LeaderTrack enviados com sucesso: {enviados}"
 
-    
+
 @app.route("/painel-admin")
 def painel_admin():
     return '''
@@ -528,49 +552,50 @@ def painel_admin():
     </head>
     <body>
         <h1>🎯 Painel Admin - Sistema Completo</h1>
-        
+
         <div class="card section">
             <h2>📋 Sistema de Formulários (Tokens Temporários)</h2>
-            
+
             <form action="/upload" method="post" enctype="multipart/form-data" target="_blank">
                 <p><strong>1. Upload da planilha Excel (Formulários)</strong></p>
                 <p><em>Formato: nome, email, company, codrodada, produto, tipo, nomeLider, emailLider</em></p>
                 <input type="file" name="file" accept=".xlsx" required>
                 <input type="submit" value="Gerar Tokens Formulários" class="btn">
             </form>
-            
+
             <p><strong>2. Listar Tokens (Formulários)</strong></p>
             <a href="/listar-tokens" target="_blank" class="btn">📑 Ver Tokens Formulários</a>
-            
+
             <p><strong>3. Enviar E-mails (Formulários)</strong></p>
             <a href="/enviar-emails" target="_blank" class="btn btn-success">✉️ Enviar Links Formulários</a>
-            
+
             <p><strong>4. Excluir Tokens (Formulários)</strong></p>
             <a href="/excluir-tokens" target="_blank" class="btn btn-danger">🗑️ Excluir Tokens Formulários</a>
         </div>
 
         <div class="card section-leadertrack">
             <h2>🎯 Sistema LeaderTrack (Tokens Permanentes)</h2>
-            
+
             <form action="/upload-leadertrack" method="post" enctype="multipart/form-data" target="_blank">
                 <p><strong>1. Upload da planilha Excel (LeaderTrack)</strong></p>
                 <p><em>Formato: nomeLider, emailLider, company, codrodada</em></p>
                 <input type="file" name="file" accept=".xlsx" required>
                 <input type="submit" value="Gerar Tokens LeaderTrack" class="btn btn-warning">
             </form>
-            
+
             <p><strong>2. Listar Tokens (LeaderTrack)</strong></p>
             <a href="/listar-tokens-leadertrack" target="_blank" class="btn btn-warning">📑 Ver Tokens LeaderTrack</a>
-            
+
             <p><strong>3. Enviar E-mails (LeaderTrack)</strong></p>
             <a href="/enviar-emails-leadertrack" target="_blank" class="btn btn-success">✉️ Enviar Links LeaderTrack</a>
-            
+
             <p><strong>4. Excluir Tokens (LeaderTrack)</strong></p>
             <a href="/excluir-tokens-leadertrack" target="_blank" class="btn btn-danger">🗑️ Excluir Tokens LeaderTrack</a>
         </div>
     </body>
     </html>
     '''
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
