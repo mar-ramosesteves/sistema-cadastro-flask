@@ -6,6 +6,7 @@ import smtplib
 import ssl
 from datetime import datetime, timedelta
 from urllib.parse import urlencode, quote
+from html import escape
 
 import pandas as pd
 from flask import Flask, request, render_template, redirect, session
@@ -17,6 +18,7 @@ app.secret_key = 'sistema-cadastro-secret-key-2024'
 
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
 LEADER_TRACK_TOKENS_FILE = os.path.join(os.path.dirname(__file__), "leader_track_tokens.json")
+PORTAL_DESEMPENHO_USUARIOS_FILE = os.path.join(os.path.dirname(__file__), "portal_desempenho_usuarios.json")
 
 
 def normalizar(texto):
@@ -69,6 +71,48 @@ def carregar_leader_track_tokens():
 def salvar_leader_track_tokens(tokens):
     with open(LEADER_TRACK_TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(tokens, f, indent=2, ensure_ascii=False)
+
+
+def carregar_portal_desempenho_usuarios():
+    if not os.path.exists(PORTAL_DESEMPENHO_USUARIOS_FILE):
+        print(f"📁 Criando arquivo: {PORTAL_DESEMPENHO_USUARIOS_FILE}")
+        with open(PORTAL_DESEMPENHO_USUARIOS_FILE, "w", encoding="utf-8") as f:
+            json.dump([], f, indent=2, ensure_ascii=False)
+
+    try:
+        with open(PORTAL_DESEMPENHO_USUARIOS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            print(f"📥 Carregando usuários do Portal de Desempenho: {len(data)} encontrados")
+            if isinstance(data, list) and all(isinstance(item, dict) for item in data):
+                return data
+            else:
+                print("❌ ERRO: portal_desempenho_usuarios.json não está no formato esperado.")
+                return []
+    except Exception as e:
+        print(f"❌ ERRO ao carregar usuários do Portal de Desempenho: {e}")
+        return []
+
+
+def salvar_portal_desempenho_usuarios(usuarios):
+    with open(PORTAL_DESEMPENHO_USUARIOS_FILE, "w", encoding="utf-8") as f:
+        json.dump(usuarios, f, indent=2, ensure_ascii=False)
+
+
+def ler_planilha_usuarios_portal(file):
+    nome_arquivo = (file.filename or "").lower()
+
+    if nome_arquivo.endswith(".csv"):
+        try:
+            return pd.read_csv(file, dtype=str, encoding="utf-8-sig").fillna("")
+        except UnicodeDecodeError:
+            file.seek(0)
+            return pd.read_csv(file, dtype=str, encoding="latin1").fillna("")
+
+    return pd.read_excel(file, dtype=str).fillna("")
+
+
+def limpar_email(email):
+    return str(email or "").strip().lower()
 
 
 def obter_config_email():
@@ -542,6 +586,234 @@ def enviar_emails_leadertrack():
     return f"<pre>{resumo}\n\n" + "\n".join(logs) + "</pre>"
 
 
+@app.route("/upload-portal-desempenho", methods=["GET", "POST"])
+def upload_portal_desempenho():
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file:
+            return "❌ Nenhum arquivo enviado.", 400
+
+        try:
+            df = ler_planilha_usuarios_portal(file)
+
+            colunas = set(df.columns)
+            if "user_email" not in colunas and "email" not in colunas:
+                return "❌ A planilha precisa ter a coluna user_email ou email.", 400
+
+            usuarios = []
+            emails_vistos = set()
+            pulados = 0
+
+            for _, row in df.iterrows():
+                email = limpar_email(row.get("user_email", row.get("email", "")))
+
+                if not email or "@" not in email:
+                    pulados += 1
+                    continue
+
+                if email in emails_vistos:
+                    pulados += 1
+                    continue
+
+                emails_vistos.add(email)
+
+                first_name = str(row.get("first_name", "")).strip()
+                display_name = str(row.get("display_name", "")).strip()
+
+                if not display_name:
+                    display_name = first_name or email.split("@")[0]
+
+                if not first_name:
+                    first_name = display_name.split(" ")[0] if display_name else "Olá"
+
+                usuarios.append({
+                    "user_email": email,
+                    "first_name": first_name,
+                    "display_name": display_name,
+                    "carregado_em": datetime.now().isoformat(),
+                    "enviado": False,
+                    "enviado_em": None,
+                    "erro": None
+                })
+
+            salvar_portal_desempenho_usuarios(usuarios)
+
+            return (
+                f"✅ Lista do Portal de Desempenho carregada com sucesso!<br>"
+                f"📦 Usuários válidos carregados: {len(usuarios)}<br>"
+                f"⏭️ Registros pulados: {pulados}<br><br>"
+                f"<a href='/listar-usuarios-portal-desempenho'>Ver usuários carregados</a>"
+            )
+
+        except Exception as e:
+            return f"❌ Erro ao processar arquivo: {e}", 500
+
+    return """
+    <!doctype html>
+    <title>Upload - Portal de Avaliação de Desempenho</title>
+    <h2>📊 Upload de CSV/Excel - Portal de Avaliação de Desempenho</h2>
+    <p><strong>Formato esperado:</strong> user_email, first_name, display_name</p>
+    <p><em>Também aceita o CSV completo do WordPress, desde que tenha user_email.</em></p>
+    <form method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv,.xlsx" required>
+      <input type="submit" value="Carregar Usuários do Portal">
+    </form>
+    """
+
+
+@app.route("/listar-usuarios-portal-desempenho")
+def listar_usuarios_portal_desempenho():
+    usuarios = carregar_portal_desempenho_usuarios()
+
+    html = "<h2>✅ USUÁRIOS CARREGADOS - PORTAL DE AVALIAÇÃO DE DESEMPENHO</h2>"
+    html += f"<p><strong>Total:</strong> {len(usuarios)}</p>"
+    html += "<ul style='font-family:monospace;'>"
+
+    for u in usuarios:
+        status_envio = "✅ Enviado" if u.get("enviado") else "⏳ Pendente"
+        erro = u.get("erro") or ""
+        html += "<li>"
+        html += "<br>".join([
+            f"<b>Nome:</b> {escape(str(u.get('display_name', '')))}",
+            f"<b>Email:</b> {escape(str(u.get('user_email', '')))}",
+            f"<b>Status:</b> {status_envio}",
+            f"<b>Enviado em:</b> {escape(str(u.get('enviado_em') or ''))}",
+            f"<b>Erro:</b> {escape(str(erro))}"
+        ])
+        html += "</li><hr>"
+
+    html += "</ul>"
+    return html
+
+
+@app.route("/excluir-usuarios-portal-desempenho", methods=["GET", "POST"])
+def excluir_usuarios_portal_desempenho():
+    if request.method == "POST":
+        try:
+            salvar_portal_desempenho_usuarios([])
+            return "✅ Todos os usuários carregados do Portal de Desempenho foram excluídos com sucesso!"
+        except Exception as e:
+            return f"❌ Erro ao excluir usuários carregados: {e}"
+
+    return """
+        <h2>Confirmação de Exclusão - Portal de Avaliação de Desempenho</h2>
+        <p style="color:red;"><strong>ATENÇÃO:</strong> Esta ação vai apagar apenas a lista carregada para envio de e-mails do portal. Ela não apaga usuários do WordPress nem do Supabase.</p>
+        <form method="post">
+            <button type="submit" style="padding:10px 20px; background:red; color:white; border:none; border-radius:8px;">Excluir lista carregada</button>
+        </form>
+        <p><a href="/listar-usuarios-portal-desempenho">Voltar</a></p>
+    """
+
+
+@app.route("/enviar-emails-portal-desempenho", methods=["GET"])
+def enviar_emails_portal_desempenho():
+    usuarios = carregar_portal_desempenho_usuarios()
+
+    remetente, senha_remetente, smtp_server, porta = obter_config_email()
+
+    enviados = 0
+    pulados = 0
+    erros = 0
+    logs = []
+
+    portal_url = "https://gestor.thehrkey.tech/meu-portal-leadertrack/"
+
+    logs.append(f"📦 Total de usuários carregados: {len(usuarios)}")
+    logs.append(f"📨 Remetente configurado: {remetente}")
+    logs.append(f"🌐 SMTP: {smtp_server}:{porta}")
+
+    for i, usuario in enumerate(usuarios, start=1):
+        try:
+            nome = str(usuario.get("first_name") or usuario.get("display_name") or "Olá").strip()
+            nome_completo = str(usuario.get("display_name") or nome).strip()
+            email = limpar_email(usuario.get("user_email", ""))
+
+            logs.append(f"--- Registro Portal {i} ---")
+            logs.append(f"nome={nome_completo}")
+            logs.append(f"email={email}")
+
+            if usuario.get("enviado"):
+                logs.append("⏭️ Pulado: e-mail já marcado como enviado anteriormente")
+                pulados += 1
+                continue
+
+            if not email or "@" not in email:
+                logs.append("⏭️ Pulado: e-mail inválido")
+                pulados += 1
+                continue
+
+            assunto = "Acesso ao Portal LeaderTrack - Avaliação de Desempenho"
+
+            corpo = f"""
+            <div style="font-family:Arial,sans-serif; color:#1f2937; line-height:1.6;">
+              <p>Olá, <strong>{escape(nome)}</strong>!</p>
+
+              <p>Seu acesso ao <strong>Portal LeaderTrack</strong> já está disponível.</p>
+
+              <p><strong>Para acessar pela primeira vez:</strong></p>
+
+              <ol>
+                <li>Acesse o portal pelo link abaixo.</li>
+                <li>Use como <strong>usuário</strong> o seu próprio e-mail cadastrado: <strong>{escape(email)}</strong>.</li>
+                <li>Como este é o primeiro acesso, clique em <strong>“Esqueceu sua senha?”</strong> ou <strong>“Perdeu a senha?”</strong>.</li>
+                <li>Informe novamente o seu e-mail cadastrado.</li>
+                <li>O sistema enviará um e-mail com o link para criação da sua senha.</li>
+              </ol>
+
+              <p>
+                <a href="{portal_url}" target="_blank" style="padding:12px 24px; background:#007bff; color:white; text-decoration:none; border-radius:8px; display:inline-block;">
+                  Acessar Portal LeaderTrack
+                </a>
+              </p>
+
+              <p><strong>Ou copie este link:</strong></p>
+              <p style="background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace;">{portal_url}</p>
+
+              <p style="background:#fff7ed; border-left:4px solid #f97316; padding:12px; border-radius:6px;">
+                <strong>Importante:</strong> o e-mail de redefinição de senha pode cair na caixa de
+                <strong>Spam</strong>, <strong>Lixo eletrônico</strong>, <strong>Promoções</strong> ou similar.
+                Caso não encontre na caixa de entrada, verifique essas pastas.
+              </p>
+
+              <p>No portal, você verá os módulos disponíveis conforme seu perfil de acesso.</p>
+
+              <p>Em caso de dificuldade, entre em contato com o RH ou com o responsável pelo projeto LeaderTrack.</p>
+
+              <hr>
+              <p style="font-size:12px;color:#777;">The HR Key | LeaderTrack | Avaliação de Desempenho</p>
+            </div>
+            """
+
+            msg = MIMEMultipart()
+            msg["From"] = f"The HR Key <{remetente}>"
+            msg["To"] = email
+            msg["Subject"] = assunto
+            msg.attach(MIMEText(corpo, "html"))
+
+            with smtplib.SMTP(smtp_server, porta) as server:
+                server.ehlo()
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
+                server.login(remetente, senha_remetente)
+                server.sendmail(remetente, email, msg.as_string())
+
+            usuario["enviado"] = True
+            usuario["enviado_em"] = datetime.now().isoformat()
+            usuario["erro"] = None
+            enviados += 1
+            logs.append(f"✅ E-mail do Portal enviado para {email}")
+
+        except Exception as e:
+            erros += 1
+            usuario["erro"] = str(e)
+            logs.append(f"❌ Erro ao enviar para {usuario.get('user_email', 'sem email')}: {str(e)}")
+
+    salvar_portal_desempenho_usuarios(usuarios)
+
+    resumo = f"✅ E-mails Portal enviados: {enviados} | ⏭️ Pulados: {pulados} | ❌ Erros: {erros} | 📦 Total: {len(usuarios)}"
+    return f"<pre>{resumo}\n\n" + "\n".join(logs) + "</pre>"
+
+
 @app.route("/painel-admin")
 def painel_admin():
     return '''
@@ -592,6 +864,12 @@ def painel_admin():
             .section-leadertrack {
                 border-left-color: #28a745;
             }
+            .section-portal {
+                border-left-color: #6f42c1;
+            }
+            .btn-purple {
+                background: #6f42c1;
+            }
         </style>
     </head>
     <body>
@@ -635,6 +913,27 @@ def painel_admin():
 
             <p><strong>4. Excluir Tokens (LeaderTrack)</strong></p>
             <a href="/excluir-tokens-leadertrack" target="_blank" class="btn btn-danger">🗑️ Excluir Tokens LeaderTrack</a>
+        </div>
+
+        <div class="card section-portal">
+            <h2>🧭 Portal de Avaliação de Desempenho</h2>
+
+            <form action="/upload-portal-desempenho" method="post" enctype="multipart/form-data" target="_blank">
+                <p><strong>1. Upload da lista de usuários do portal</strong></p>
+                <p><em>Formato esperado: user_email, first_name, display_name</em></p>
+                <p><em>Este envio não gera token. Ele apenas envia a orientação de primeiro acesso ao portal.</em></p>
+                <input type="file" name="file" accept=".csv,.xlsx" required>
+                <input type="submit" value="Carregar Usuários do Portal" class="btn btn-purple">
+            </form>
+
+            <p><strong>2. Listar usuários carregados</strong></p>
+            <a href="/listar-usuarios-portal-desempenho" target="_blank" class="btn btn-purple">📑 Ver Usuários do Portal</a>
+
+            <p><strong>3. Enviar e-mails de acesso ao Portal</strong></p>
+            <a href="/enviar-emails-portal-desempenho" target="_blank" class="btn btn-success">✉️ Enviar Acessos ao Portal</a>
+
+            <p><strong>4. Excluir lista carregada do Portal</strong></p>
+            <a href="/excluir-usuarios-portal-desempenho" target="_blank" class="btn btn-danger">🗑️ Excluir Lista do Portal</a>
         </div>
     </body>
     </html>
