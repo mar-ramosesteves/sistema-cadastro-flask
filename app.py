@@ -717,6 +717,8 @@ def enviar_emails_portal_desempenho():
     logs = []
 
     portal_url = "https://gestor.thehrkey.tech/meu-portal-leadertrack/"
+    criar_senha_url = "https://gestor.thehrkey.tech/wp-login.php?action=lostpassword"
+    login_portal_url = "https://gestor.thehrkey.tech/wp-login.php?redirect_to=https%3A%2F%2Fgestor.thehrkey.tech%2Fmeu-portal-leadertrack%2F"
 
     logs.append(f"📦 Total de usuários carregados: {len(usuarios)}")
     logs.append(f"📨 Remetente configurado: {remetente}")
@@ -753,21 +755,28 @@ def enviar_emails_portal_desempenho():
               <p><strong>Para acessar pela primeira vez:</strong></p>
 
               <ol>
-                <li>Acesse o portal pelo link abaixo.</li>
                 <li>Use como <strong>usuário</strong> o seu próprio e-mail cadastrado: <strong>{escape(email)}</strong>.</li>
-                <li>Como este é o primeiro acesso, clique em <strong>“Esqueceu sua senha?”</strong> ou <strong>“Perdeu a senha?”</strong>.</li>
+                <li>Clique no botão <strong>“Criar minha senha”</strong>.</li>
                 <li>Informe novamente o seu e-mail cadastrado.</li>
                 <li>O sistema enviará um e-mail com o link para criação da sua senha.</li>
+                <li>Depois de criar a senha, volte a este e-mail e clique em <strong>“Acessar Portal LeaderTrack”</strong>.</li>
               </ol>
 
               <p>
-                <a href="{portal_url}" target="_blank" style="padding:12px 24px; background:#007bff; color:white; text-decoration:none; border-radius:8px; display:inline-block;">
+                <a href="{criar_senha_url}" target="_blank" style="padding:12px 24px; background:#111827; color:white; text-decoration:none; border-radius:8px; display:inline-block; margin-right:8px;">
+                  Criar minha senha
+                </a>
+
+                <a href="{login_portal_url}" target="_blank" style="padding:12px 24px; background:#007bff; color:white; text-decoration:none; border-radius:8px; display:inline-block;">
                   Acessar Portal LeaderTrack
                 </a>
               </p>
 
-              <p><strong>Ou copie este link:</strong></p>
-              <p style="background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace;">{portal_url}</p>
+              <p><strong>Links para copiar, se necessário:</strong></p>
+              <p><strong>Criar senha:</strong></p>
+              <p style="background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace;">{criar_senha_url}</p>
+              <p><strong>Acessar Portal:</strong></p>
+              <p style="background:#f5f5f5; padding:10px; border-radius:5px; font-family:monospace;">{login_portal_url}</p>
 
               <p style="background:#fff7ed; border-left:4px solid #f97316; padding:12px; border-radius:6px;">
                 <strong>Importante:</strong> o e-mail de redefinição de senha pode cair na caixa de
